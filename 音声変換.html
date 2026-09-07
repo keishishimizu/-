@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【シンプル表示版】音のデジタル化（サンプリング・量子化）体験シミュレーター</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #4ade80;
+            --accent-red: #f43f5e;
+            --accent-orange: #f97316;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: var(--accent-blue);
+            margin-bottom: 6px;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .visual-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .canvas-title {
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+
+        .legend {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        canvas {
+            width: 100%;
+            height: 240px;
+            background-color: #020617;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .source-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .source-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .source-btn {
+            background-color: #0f172a;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .source-btn.active {
+            border-color: var(--accent-blue);
+            background-color: #1e3a8a;
+        }
+
+        .rec-active {
+            border-color: var(--accent-red) !important;
+            background-color: #881337 !important;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .controls-card, .info-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--text-main);
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .label-val {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+        }
+
+        .val-badge {
+            color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .presets {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background-color: #334155;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-blue);
+            color: #000;
+        }
+
+        .btn-play-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-play {
+            background-color: #2563eb;
+            flex: 1;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-play:hover {
+            background-color: #1d4ed8;
+            color: #fff;
+        }
+
+        .btn-pause {
+            background-color: var(--accent-orange) !important;
+        }
+
+        .btn-pause:hover {
+            background-color: #ea580c !important;
+            color: #fff !important;
+        }
+
+        .btn-reset {
+            background-color: #475569;
+            padding: 12px;
+            font-size: 0.9rem;
+        }
+
+        /* 項目2つ向けのレイアウト */
+        .stat-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            justify-content: center;
+            height: calc(100% - 40px);
+        }
+
+        .stat-box-large {
+            background-color: #0f172a;
+            padding: 18px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-label-large {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .stat-value-blue {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+        }
+
+        .stat-value-green {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>音のデジタル化（サンプリング・量子化）シミュレーター</h1>
+        <p class="subtitle">自分の声やMP3ファイルを読み込んで、デジタル化のパラメータ（Hz・bit）を体感しよう</p>
+    </header>
+
+    <div class="app-container">
+        
+        <!-- 音源選択 -->
+        <div class="source-card">
+            <div class="card-title">1. 音源を選択 / 録音</div>
+            <div class="source-options">
+                <div class="source-btn active" id="modeSynthBtn" onclick="switchSource('synth')">
+                    🎵 プリセット音源<br><small style="color:var(--text-muted);">サイン波 / 和音</small>
+                </div>
+                <div class="source-btn" id="modeRecBtn" onclick="toggleRecord()">
+                    🎙️ マイクで録音 (最大15秒)<br><small id="recStatus" style="color:var(--text-muted);">クリックで開始/停止</small>
+                </div>
+                <div class="source-btn" id="modeFileBtn" onclick="document.getElementById('audioFileInput').click()">
+                    📁 音声ファイルを読み込む<br><small id="fileName" style="color:var(--text-muted);">MP3 / WAV 対応</small>
+                </div>
+            </div>
+            <input type="file" id="audioFileInput" accept="audio/*" style="display:none;">
+        </div>
+
+        <!-- 波形キャンバス -->
+        <div class="visual-card">
+            <div class="canvas-header">
+                <span class="canvas-title">波形表示（元の波形 vs デジタル変換波形）</span>
+                <div class="legend">
+                    <div class="legend-item"><div class="dot" style="background:#475569;"></div>アナログ（元波形）</div>
+                    <div class="legend-item"><div class="dot" style="background:#38bdf8;"></div>標本化点</div>
+                    <div class="legend-item"><div class="dot" style="background:#4ade80;"></div>デジタル波形</div>
+                </div>
+            </div>
+            <canvas id="waveformCanvas"></canvas>
+        </div>
+
+        <!-- コントロール ＆ パラメータ表示 -->
+        <div class="grid-2col">
+            <div class="controls-card">
+                <div class="card-title">2. デジタル化パラメータ調整</div>
+
+                <!-- プリセット音選択 -->
+                <div class="control-group" id="synthSelectGroup">
+                    <div class="label-val">
+                        <span>プリセット音の種類</span>
+                    </div>
+                    <select id="soundTypeSelect" class="btn" style="width:100%; text-align:left;">
+                        <option value="sine">単音（440Hz / ドレミのラ）</option>
+                        <option value="chord">和音（ド・ミ・ソ）</option>
+                        <option value="high">高音（3000Hz / 高い音）</option>
+                    </select>
+                </div>
+
+                <!-- 標本化周波数 -->
+                <div class="control-group">
+                    <div class="label-val">
+                        <span>標本化周波数 (サンプリング)</span>
+                        <span class="val-badge" id="freqVal">44.1 kHz</span>
+                    </div>
+                    <input type="range" id="freqSlider" min="1000" max="44100" step="500" value="44100">
+                </div>
+
+                <!-- 量子化ビット数 -->
+                <div class="control-group">
+                    <div class="label-val">
+                        <span>量子化ビット数</span>
+                        <span class="val-badge" id="bitVal">16 bit</span>
+                    </div>
+                    <input type="range" id="bitSlider" min="1" max="16" step="1" value="16">
+                </div>
+
+                <!-- プリセットボタン -->
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">音質プリセット:</div>
+                <div class="presets">
+                    <button class="btn" onclick="setPreset(44100, 16)">CD音質 (44.1kHz / 16bit)</button>
+                    <button class="btn" onclick="setPreset(8000, 8)">電話音質 (8kHz / 8bit)</button>
+                    <button class="btn" onclick="setPreset(3000, 2)">超レトロ (3kHz / 2bit)</button>
+                </div>
+
+                <!-- 音声再生/一時停止/リセットボタン -->
+                <div class="btn-play-group">
+                    <button class="btn btn-play" id="playBtn">
+                        ▶ 再生
+                    </button>
+                    <button class="btn btn-reset" id="resetBtn" title="最初に戻す">
+                        🔄 最初から
+                    </button>
+                </div>
+            </div>
+
+            <!-- 現在のパラメータ表示（2項目のみ） -->
+            <div class="info-card">
+                <div class="card-title">3. 設定中のデジタル化パラメータ</div>
+
+                <div class="stat-stack">
+                    <div class="stat-box-large">
+                        <div class="stat-label-large">サンプリング周波数</div>
+                        <div class="stat-value-blue" id="displayFreq">44,100 Hz (44.1 kHz)</div>
+                    </div>
+                    <div class="stat-box-large">
+                        <div class="stat-label-large">量子化ビット数</div>
+                        <div class="stat-value-green" id="displayBit">16 bit (65,536 段階)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素
+        const canvas = document.getElementById('waveformCanvas');
+        const ctx = canvas.getContext('2d');
+        const freqSlider = document.getElementById('freqSlider');
+        const bitSlider = document.getElementById('bitSlider');
+        const soundTypeSelect = document.getElementById('soundTypeSelect');
+        const synthSelectGroup = document.getElementById('synthSelectGroup');
+        const freqVal = document.getElementById('freqVal');
+        const bitVal = document.getElementById('bitVal');
+        const displayFreq = document.getElementById('displayFreq');
+        const displayBit = document.getElementById('displayBit');
+        const playBtn = document.getElementById('playBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const audioFileInput = document.getElementById('audioFileInput');
+
+        // Web Audio API & ステート
+        let audioCtx = null;
+        let scriptNode = null;
+        let currentSourceMode = 'synth'; // 'synth', 'rec', 'file'
+        let loadedAudioBuffer = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recTimer = null;
+        let recSeconds = 0;
+
+        // 再生ステート（ポーズ・レジューム管理）
+        let isPlaying = false;
+        let playbackTime = 0;
+        let animFrameId = null;
+
+        // キャンバス初期化
+        function initCanvas() {
+            canvas.width = canvas.parentElement.clientWidth - 32;
+            canvas.height = 240;
+        }
+        window.addEventListener('resize', () => { initCanvas(); draw(); });
+        initCanvas();
+
+        // プリセット音（シンセ波形）
+        function getSynthSignal(t, type) {
+            if (type === 'high') {
+                return Math.sin(2 * Math.PI * 3000 * t);
+            } else if (type === 'chord') {
+                return 0.5 * Math.sin(2 * Math.PI * 440 * t) + 
+                       0.3 * Math.sin(2 * Math.PI * 554.37 * t) + 
+                       0.2 * Math.sin(2 * Math.PI * 659.25 * t);
+            } else {
+                return Math.sin(2 * Math.PI * 440 * t);
+            }
+        }
+
+        // 録音・MP3データから波形信号を取得
+        function getBufferSignal(t) {
+            if (!loadedAudioBuffer) return 0;
+            const data = loadedAudioBuffer.getChannelData(0);
+            const index = Math.floor(t * loadedAudioBuffer.sampleRate);
+            if (index >= 0 && index < data.length) {
+                return data[index];
+            }
+            return 0;
+        }
+
+        // 波形信号の抽象化
+        function getRawSignal(t) {
+            if (currentSourceMode === 'synth') {
+                return getSynthSignal(t, soundTypeSelect.value);
+            } else {
+                return getBufferSignal(t);
+            }
+        }
+
+        // 量子化処理
+        function quantize(value, bits) {
+            const levels = Math.pow(2, bits);
+            const step = 2 / levels;
+            let clamped = Math.max(-1, Math.min(1, value));
+            let quantized = Math.floor((clamped + 1) / step) * step - 1 + (step / 2);
+            return Math.max(-1, Math.min(1, quantized));
+        }
+
+        // 波形描画＆右下パラメータ更新
+        function draw(timeOffset = 0) {
+            const freq = parseInt(freqSlider.value);
+            const bits = parseInt(bitSlider.value);
+
+            // スライダー横の簡易表示
+            freqVal.textContent = (freq / 1000).toFixed(1) + ' kHz';
+            bitVal.textContent = `${bits} bit`;
+
+            // 右側カードの強調表示更新
+            displayFreq.textContent = `${freq.toLocaleString()} Hz (${(freq / 1000).toFixed(1)} kHz)`;
+            displayBit.textContent = `${bits} bit (${Math.pow(2, bits).toLocaleString()} 段階)`;
+
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerY = height / 2;
+            const amplitude = height * 0.4;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // 背景グリッド
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY); ctx.lineTo(width, centerY);
+            ctx.stroke();
+
+            // 表示する時間幅（画面幅＝約15ミリ秒 / プリセットは6ミリ秒）
+            const displayTime = (currentSourceMode === 'synth') ? 0.006 : 0.015; 
+
+            // 1. 元の波形（アナログ・グレー）
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = 0; x < width; x++) {
+                const t = timeOffset + (x / width) * displayTime;
+                const y = centerY - getRawSignal(t) * amplitude;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // 2. 階段状のデジタル波形（緑）
+            const samplePeriod = 1 / freq;
+            const startSampleIndex = Math.floor(timeOffset / samplePeriod);
+            const endSampleIndex = Math.ceil((timeOffset + displayTime) / samplePeriod);
+
+            ctx.strokeStyle = '#4ade80';
+            ctx.fillStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            let lastY = null;
+
+            for (let i = startSampleIndex; i <= endSampleIndex; i++) {
+                const t = i * samplePeriod;
+                const x = ((t - timeOffset) / displayTime) * width;
+
+                const rawVal = getRawSignal(t);
+                const qVal = quantize(rawVal, bits);
+                const y = centerY - qVal * amplitude;
+
+                if (i === startSampleIndex) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, lastY);
+                    ctx.lineTo(x, y);
+                }
+                lastY = y;
+            }
+            ctx.stroke();
+
+            // 標本点プロット（青丸）
+            for (let i = startSampleIndex; i <= endSampleIndex; i++) {
+                const t = i * samplePeriod;
+                const x = ((t - timeOffset) / displayTime) * width;
+                const rawVal = getRawSignal(t);
+                const qVal = quantize(rawVal, bits);
+                const y = centerY - qVal * amplitude;
+
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 再生中・一時停止中の再生位置バー（赤色ライン）
+            if (currentSourceMode !== 'synth') {
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(width / 2, 0);
+                ctx.lineTo(width / 2, height);
+                ctx.stroke();
+            }
+        }
+
+        // 音源モード切替
+        function switchSource(mode) {
+            resetAudio();
+
+            currentSourceMode = mode;
+            document.getElementById('modeSynthBtn').classList.toggle('active', mode === 'synth');
+            document.getElementById('modeRecBtn').classList.toggle('active', mode === 'rec');
+            document.getElementById('modeFileBtn').classList.toggle('active', mode === 'file');
+
+            synthSelectGroup.style.display = (mode === 'synth') ? 'block' : 'none';
+            draw(0);
+        }
+
+        // 録音処理（最大15秒）
+        async function toggleRecord() {
+            resetAudio();
+
+            if (isRecording) {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                }
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('お使いのブラウザはマイク録音に対応していません。');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                const recBtn = document.getElementById('modeRecBtn');
+                const recStatus = document.getElementById('recStatus');
+
+                recBtn.classList.add('rec-active');
+                recSeconds = 0;
+                recStatus.textContent = `録音中... 0 / 15秒 (クリックで停止)`;
+                isRecording = true;
+
+                recTimer = setInterval(() => {
+                    recSeconds++;
+                    recStatus.textContent = `録音中... ${recSeconds} / 15秒 (クリックで停止)`;
+                    if (recSeconds >= 15) {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                        }
+                    }
+                }, 1000);
+
+                mediaRecorder = new MediaRecorder(stream);
+                const audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+                mediaRecorder.onstop = async () => {
+                    clearInterval(recTimer);
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const arrayBuffer = await audioBlob.arrayBuffer();
+                    loadedAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+                    recBtn.classList.remove('rec-active');
+                    recStatus.textContent = '録音完了！';
+                    isRecording = false;
+
+                    stream.getTracks().forEach(track => track.stop());
+                    switchSource('rec');
+                };
+
+                mediaRecorder.start();
+
+            } catch (err) {
+                alert('マイクのアクセス許可が得られませんでした。');
+            }
+        }
+
+        // ファイル読み込み
+        audioFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            resetAudio();
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            document.getElementById('fileName').textContent = file.name;
+
+            const arrayBuffer = await file.arrayBuffer();
+            audioCtx.decodeAudioData(arrayBuffer, (decodedData) => {
+                loadedAudioBuffer = decodedData;
+                switchSource('file');
+            }, (err) => {
+                alert('音声ファイルの読み込みに失敗しました。対応フォーマット(MP3/WAVなど)をご確認ください。');
+            });
+        });
+
+        // プリセット設定
+        function setPreset(f, b) {
+            freqSlider.value = f;
+            bitSlider.value = b;
+            draw(playbackTime);
+        }
+
+        // 音声再生トグル（再生 / 一時停止）
+        function togglePlay() {
+            if (isPlaying) {
+                pauseAudio();
+            } else {
+                startAudio();
+            }
+        }
+
+        // リアルタイム音声再生開始
+        function startAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            let maxDuration = 2.0;
+            if (currentSourceMode !== 'synth' && loadedAudioBuffer) {
+                maxDuration = loadedAudioBuffer.duration;
+            }
+
+            if (playbackTime >= maxDuration) {
+                playbackTime = 0;
+            }
+
+            isPlaying = true;
+
+            playBtn.textContent = '⏸ 一時停止';
+            playBtn.classList.add('btn-pause');
+
+            const bufferSize = 2048;
+            scriptNode = audioCtx.createScriptProcessor(bufferSize, 0, 1);
+
+            scriptNode.onaudioprocess = function(e) {
+                if (!isPlaying) return;
+
+                const output = e.outputBuffer.getChannelData(0);
+                const sampleRate = audioCtx.sampleRate;
+
+                const currentFreq = parseInt(freqSlider.value);
+                const currentBits = parseInt(bitSlider.value);
+                const samplePeriod = 1 / currentFreq;
+
+                for (let i = 0; i < bufferSize; i++) {
+                    const t = playbackTime + (i / sampleRate);
+
+                    if (t >= maxDuration) {
+                        output[i] = 0;
+                        setTimeout(() => resetAudio(), 0);
+                        return;
+                    }
+
+                    const sampledTime = Math.floor(t / samplePeriod) * samplePeriod;
+                    const rawVal = getRawSignal(sampledTime);
+                    output[i] = quantize(rawVal, currentBits);
+                }
+
+                playbackTime += bufferSize / sampleRate;
+            };
+
+            scriptNode.connect(audioCtx.destination);
+
+            function animate() {
+                if (isPlaying) {
+                    draw(playbackTime);
+                    animFrameId = requestAnimationFrame(animate);
+                }
+            }
+            animate();
+        }
+
+        // 一時停止
+        function pauseAudio() {
+            isPlaying = false;
+            if (scriptNode) {
+                scriptNode.disconnect();
+                scriptNode = null;
+            }
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+
+            playBtn.textContent = '▶ 再生 (続きから)';
+            playBtn.classList.remove('btn-pause');
+            draw(playbackTime);
+        }
+
+        // 位置リセット
+        function resetAudio() {
+            pauseAudio();
+            playbackTime = 0;
+            playBtn.textContent = '▶ 再生';
+            draw(0);
+        }
+
+        // イベントリスナー
+        freqSlider.addEventListener('input', () => draw(playbackTime));
+        bitSlider.addEventListener('input', () => draw(playbackTime));
+        soundTypeSelect.addEventListener('change', () => draw(playbackTime));
+        playBtn.addEventListener('click', togglePlay);
+        resetBtn.addEventListener('click', resetAudio);
+
+        // 初期描画
+        draw(0);
+    </script>
+</body>
+</html>
